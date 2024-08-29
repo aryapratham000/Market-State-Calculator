@@ -35,6 +35,7 @@ namespace Market_State_Calculator
         [InputParameter("MiniEMA Double Threshold", 80)]
         private const double DoubleThreshold = 0.3;
 
+
         // EMA and ATR Indicators
         private Indicator ema8;
         private Indicator ema50;
@@ -47,7 +48,10 @@ namespace Market_State_Calculator
             this.Name = "Market State Calculator";
             this.Description = "Calculates the market state score based on EMA slopes";
 
-            this.AddLineSeries("Market State Score", Color.Blue, 2, LineStyle.Solid);
+            // Initialize three different line series with different colors
+            this.AddLineSeries("Market State Score Green", Color.Green, 2, LineStyle.Solid);
+            this.AddLineSeries("Market State Score Red", Color.Red, 2, LineStyle.Solid);
+            this.AddLineSeries("Market State Score Blue", Color.Blue, 2, LineStyle.Solid);
 
             this.SeparateWindow = true;
         }
@@ -83,8 +87,25 @@ namespace Market_State_Calculator
             // Calculate the total market state score
             int marketStateScore = scoreMiniEMA + scoreFastEMA + scoreSlowEMA;
 
-            // Plot the market state score
-            this.SetValue(marketStateScore, 0);
+            // Determine which line series to update based on the marketStateScore
+            if (marketStateScore >= 2)
+            {
+                this.SetValue(marketStateScore, 0); // Green series
+                this.SetValue(double.NaN, 1); // Red series
+                this.SetValue(double.NaN, 2); // Blue series
+            }
+            else if (marketStateScore <= -2)
+            {
+                this.SetValue(double.NaN, 0); // Green series
+                this.SetValue(marketStateScore, 1); // Red series
+                this.SetValue(double.NaN, 2); // Blue series
+            }
+            else
+            {
+                this.SetValue(double.NaN, 0); // Green series
+                this.SetValue(double.NaN, 1); // Red series
+                this.SetValue(marketStateScore, 2); // Blue series
+            }
         }
 
         private double CalculateSlope(Indicator ema, int period)
