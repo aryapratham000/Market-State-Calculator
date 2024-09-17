@@ -1,3 +1,5 @@
+// Custom Market State Score Indicator on quantower
+
 using System;
 using System.Drawing;
 using TradingPlatform.BusinessLayer;
@@ -38,9 +40,9 @@ namespace Market_State_Calculator
         public int smoothingPeriod = 5;
 
         // EMA and ATR Indicators
-        private Indicator ema8;
-        private Indicator ema50;
-        private Indicator ema200;
+        private Indicator emaMini;
+        private Indicator emaFast;
+        private Indicator emaSlow;
         private Indicator atr;
 
         private double previousSmoothedScore = double.NaN;
@@ -62,14 +64,14 @@ namespace Market_State_Calculator
         protected override void OnInit()
         {
             // Initialize the EMA indicators
-            this.ema8 = Core.Indicators.BuiltIn.EMA(this.miniEmaLength, PriceType.Close);
-            this.ema50 = Core.Indicators.BuiltIn.EMA(this.fastEmaLength, PriceType.Close);
-            this.ema200 = Core.Indicators.BuiltIn.EMA(this.slowEmaLength, PriceType.Close);
+            this.emaMini = Core.Indicators.BuiltIn.EMA(this.miniEmaLength, PriceType.Close);
+            this.emaFast = Core.Indicators.BuiltIn.EMA(this.fastEmaLength, PriceType.Close);
+            this.emaSlow = Core.Indicators.BuiltIn.EMA(this.slowEmaLength, PriceType.Close);
             this.atr = Core.Indicators.BuiltIn.ATR(this.AtrLength, MaMode.SMA);
 
-            this.AddIndicator(this.ema8);
-            this.AddIndicator(this.ema50);
-            this.AddIndicator(this.ema200);
+            this.AddIndicator(this.emaMini);
+            this.AddIndicator(this.emaFast);
+            this.AddIndicator(this.emaSlow);
             this.AddIndicator(this.atr);
         }
 
@@ -78,25 +80,25 @@ namespace Market_State_Calculator
             if (this.Count <= Math.Max(this.SlopePeriodMini, Math.Max(this.SlopePeriodFast, this.SlopePeriodSlow)))
                 return;
 
-            double slope8EMA = CalculateSlope(this.ema8, this.SlopePeriodMini);
-            double slope50EMA = CalculateSlope(this.ema50, this.SlopePeriodFast);
-            double slope200EMA = CalculateSlope(this.ema200, this.SlopePeriodSlow);
+            double slopeEmaMini = CalculateSlope(this.emaMini, this.SlopePeriodMini);
+            double slopeEmaFast = CalculateSlope(this.emaFast, this.SlopePeriodFast);
+            double slopeEmaSlow = CalculateSlope(this.emaSlow, this.SlopePeriodSlow);
 
             // Calculate the range of slopes over the lookback period
-            double slopeRange8 = CalculateSlopeRange(this.ema8, this.SlopePeriodMini, this.lookbackPeriod);
-            double slopeRange50 = CalculateSlopeRange(this.ema50, this.SlopePeriodFast, this.lookbackPeriod);
-            double slopeRange200 = CalculateSlopeRange(this.ema200, this.SlopePeriodSlow, this.lookbackPeriod);
+            double slopeRangeMini = CalculateSlopeRange(this.emaMini, this.SlopePeriodMini, this.lookbackPeriod);
+            double slopeRangeFast = CalculateSlopeRange(this.emaFast, this.SlopePeriodFast, this.lookbackPeriod);
+            double slopeRangeSlow = CalculateSlopeRange(this.emaSlow, this.SlopePeriodSlow, this.lookbackPeriod);
 
             // Define the dynamic thresholds
-            double neutralThreshold8 = slopeRange8 * 0.05;
-            double neutralThreshold50 = slopeRange50 * 0.05;
-            double neutralThreshold200 = slopeRange200 * 0.05;
-            double doubleThreshold = slopeRange8 * 0.3;
+            double neutralThresholdMini = slopeRangeMini * 0.05;
+            double neutralThresholdFast = slopeRangeFast * 0.05;
+            double neutralThresholdSlow = slopeRangeSlow * 0.05;
+            double doubleThreshold = slopeRangeMini * 0.3;
 
             // Calculate scores for each EMA slope using dynamic thresholds
-            int scoreMiniEMA = slope8EMA > doubleThreshold ? 2 : slope8EMA < -doubleThreshold ? -2 : slope8EMA > neutralThreshold8 ? 1 : slope8EMA < -neutralThreshold8 ? -1 : 0;
-            int scoreFastEMA = slope50EMA > neutralThreshold50 ? 1 : slope50EMA < -neutralThreshold50 ? -1 : 0;
-            int scoreSlowEMA = slope200EMA > neutralThreshold200 ? 1 : slope200EMA < -neutralThreshold200 ? -1 : 0;
+            int scoreMiniEMA = slopeEmaMini > doubleThreshold ? 2 : slopeEmaMini < -doubleThreshold ? -2 : slopeEmaMini > neutralThresholdMini ? 1 : slopeEmaMini < -neutralThresholdMini ? -1 : 0;
+            int scoreFastEMA = slopeEmaFast > neutralThresholdFast ? 1 : slopeEmaFast < -neutralThresholdFast ? -1 : 0;
+            int scoreSlowEMA = slopeEmaSlow > neutralThresholdSlow ? 1 : slopeEmaSlow < -neutralThresholdSlow ? -1 : 0;
 
             // Calculate the total market state score
             int marketStateScore = scoreMiniEMA + scoreFastEMA + scoreSlowEMA;
@@ -136,8 +138,8 @@ namespace Market_State_Calculator
 
         private double CalculateSlopeRange(Indicator ema, int period, int lookback)
         {
-            double highestSlope = CalculateSlope(this.ema8, this.SlopePeriodMini);
-            double lowestSlope = CalculateSlope(this.ema8, this.SlopePeriodMini); 
+            double highestSlope = 0;
+            double lowestSlope = 0; 
 
             for (int i = 0; i <= lookback; i++)
             {
